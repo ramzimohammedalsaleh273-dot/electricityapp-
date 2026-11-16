@@ -55,7 +55,10 @@ export type StoreContextValue = {
 const StoreContext = createContext<StoreContextValue | null>(null);
 
 function sortInvoices(items: Invoice[]) { return [...items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.issueDate.localeCompare(a.issueDate)); }
-function normalizeInvoice(item: Invoice): Invoice { return { ...item, payments: Array.isArray(item.payments) ? item.payments : [], main: item.main ?? { previous: 0, current: 0, paid: 0 }, tenants: item.tenants ?? {} }; }
+function normalizeInvoice(item: Invoice): Invoice {
+  const legacyMeterId = String(item.meterId) === "1" ? "meter-1" : String(item.meterId) === "2" ? "meter-2" : String(item.meterId);
+  return { ...item, meterId: legacyMeterId, payments: Array.isArray(item.payments) ? item.payments : [], main: item.main ?? { previous: 0, current: 0, paid: 0 }, tenants: item.tenants ?? {} };
+}
 function latestForMeter(items: Invoice[], meterId: MeterId) { return [...items].filter((item) => item.meterId === meterId).sort((a, b) => b.issueDate.localeCompare(a.issueDate) || b.updatedAt.localeCompare(a.updatedAt))[0]; }
 function numberOrZero(value: unknown) { const parsed = Number(value); return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0; }
 
