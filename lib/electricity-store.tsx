@@ -35,7 +35,7 @@ export const TENANTS: Tenant[] = [
   { id: "fawzi", meterId: "meter-2", name: "فوزي الشبيبي" },
 ];
 
-const STORAGE_KEY = "electricity-ledger-v1";
+const STORAGE_KEY = "electricity-ledger-v2-reset-20261116";
 const SETTINGS_KEY = "electricity-ledger-settings-v1";
 
 type SettingsRecord = { defaultRate?: number; meters?: Meter[]; tenants?: Tenant[] };
@@ -50,6 +50,8 @@ export type StoreContextValue = {
   createInvoice: (input: { meterId: MeterId; title: string; issueDate: string; issueKind: Invoice["issueKind"]; rate: number; originalInvoice: number }) => Promise<Invoice>;
   updateInvoice: (id: string, patch: Partial<Pick<Invoice, "title" | "issueDate" | "issueKind" | "rate" | "originalInvoice" | "main" | "tenants" | "payments">>) => Promise<void>;
   addPayment: (invoiceId: string, payment: Omit<Payment, "id">) => Promise<Payment>;
+  deleteInvoice: (id: string) => Promise<void>;
+  clearInvoices: () => Promise<void>;
   getInvoice: (id: string | undefined) => Invoice | undefined;
 };
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -94,8 +96,10 @@ export function ElectricityProvider({ children }: { children: React.ReactNode })
   }, [invoices, persist, tenants]);
   const updateInvoice = useCallback<StoreContextValue["updateInvoice"]>(async (id, patch) => { await persist(invoices.map((invoice) => invoice.id === id ? { ...invoice, ...patch, updatedAt: new Date().toISOString() } : invoice)); }, [invoices, persist]);
   const addPayment = useCallback<StoreContextValue["addPayment"]>(async (invoiceId, input) => { const payment: Payment = { ...input, id: `payment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` }; await persist(invoices.map((invoice) => invoice.id === invoiceId ? { ...invoice, payments: [...(invoice.payments ?? []), payment], updatedAt: new Date().toISOString() } : invoice)); return payment; }, [invoices, persist]);
+  const deleteInvoice = useCallback(async (id: string) => { await persist(invoices.filter((invoice) => invoice.id !== id)); }, [invoices, persist]);
+  const clearInvoices = useCallback(async () => { await persist([]); }, [persist]);
   const getInvoice = useCallback((id: string | undefined) => invoices.find((invoice) => invoice.id === id), [invoices]);
-  const value = useMemo(() => ({ invoices, meters, tenants, hydrated, defaultRate, setDefaultRate, addMeter, createInvoice, updateInvoice, addPayment, getInvoice }), [invoices, meters, tenants, hydrated, defaultRate, setDefaultRate, addMeter, createInvoice, updateInvoice, addPayment, getInvoice]);
+  const value = useMemo(() => ({ invoices, meters, tenants, hydrated, defaultRate, setDefaultRate, addMeter, createInvoice, updateInvoice, addPayment, deleteInvoice, clearInvoices, getInvoice }), [invoices, meters, tenants, hydrated, defaultRate, setDefaultRate, addMeter, createInvoice, updateInvoice, addPayment, deleteInvoice, clearInvoices, getInvoice]);
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 export function useElectricity() { const context = useContext(StoreContext); if (!context) throw new Error("useElectricity must be used inside ElectricityProvider"); return context; }
