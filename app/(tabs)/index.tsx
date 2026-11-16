@@ -4,20 +4,22 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { ActionCard, BrandHeader, SectionHeading, StatCard, cardStyle } from "@/components/electricity-ui";
 import { E } from "@/constants/electricity-theme";
-import { formatMoney, invoiceTotals, METERS, useElectricity } from "@/lib/electricity-store";
+import { formatMoney, invoiceTotals, useElectricity } from "@/lib/electricity-store";
 import { ScreenContainer } from "@/components/screen-container";
+import { DateBanner } from "@/components/date-banner";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { invoices, hydrated } = useElectricity();
-  const due = invoices.reduce((sum, invoice) => sum + invoiceTotals(invoice).due, 0);
-  const paid = invoices.reduce((sum, invoice) => sum + invoiceTotals(invoice).paid, 0);
+  const { invoices, hydrated, meters, tenants } = useElectricity();
+  const due = invoices.reduce((sum, invoice) => sum + invoiceTotals(invoice, tenants).due, 0);
+  const paid = invoices.reduce((sum, invoice) => sum + invoiceTotals(invoice, tenants).paid, 0);
   const remaining = Math.max(due - paid, 0);
 
   if (!hydrated) return <ScreenContainer><View style={styles.loading}><Ionicons name="flash" size={38} color={E.gold} /><Text style={styles.loadingText}>جاري تجهيز الدفتر...</Text></View></ScreenContainer>;
 
   return <ScreenContainer safeAreaClassName="bg-[#F7F3EA]" edges={["top"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <DateBanner />
       <View style={styles.hero}>
         <BrandHeader title="دفتر فواتير الكهرباء" subtitle="إدارة مرتبة لكل عداد وكل شهر" />
         <View style={styles.heroRule} />
@@ -37,7 +39,7 @@ export default function HomeScreen() {
       <ActionCard title="عمليات المستأجرين" subtitle="كل القراءات والمدفوعات في سجل واحد" icon="people" onPress={() => router.push("/(tabs)/tenants")} />
 
       <SectionHeading title="العدادان الرئيسيان" subtitle="فاتورة مستقلة لكل عداد" />
-      {METERS.map((meter) => {
+      {meters.map((meter) => {
         const count = invoices.filter((invoice) => invoice.meterId === meter.id).length;
         return <View key={meter.id} style={[cardStyle, styles.meterCard]}>
           <View style={styles.meterIcon}><Ionicons name="speedometer-outline" size={25} color={E.gold} /></View>

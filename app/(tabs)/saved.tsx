@@ -10,14 +10,14 @@ import { ScreenContainer } from "@/components/screen-container";
 
 export default function SavedScreen() {
   const router = useRouter();
-  const { invoices, hydrated } = useElectricity();
+  const { invoices, hydrated, meters, tenants } = useElectricity();
   return <ScreenContainer safeAreaClassName="bg-[#F7F3EA]" edges={["top"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}><BrandHeader title="العمليات المحفوظة" subtitle="مرتبة حسب آخر عملية حفظ" icon="archive" /></View>
       {!hydrated ? <Text style={styles.empty}>جاري تحميل العمليات...</Text> : invoices.length === 0 ? <View style={styles.emptyCard}><Ionicons name="documents-outline" size={42} color={E.gold} /><Text style={styles.emptyTitle}>لا توجد فواتير بعد</Text><Text style={styles.emptyText}>أنشئ أول فاتورة، وستبقى محفوظة داخل الهاتف.</Text><Pressable style={styles.primaryButton} onPress={() => router.push("/invoice/new")}><Text style={styles.primaryText}>إنشاء أول فاتورة</Text></Pressable></View> : <>
         <SectionHeading title={`${invoices.length} فاتورة`} subtitle="يمكن فتح أي فاتورة ومراجعتها وتعديلها" />
         {invoices.map((invoice) => {
-          const meter = getMeter(invoice.meterId); const totals = invoiceTotals(invoice); const status = totals.due > 0 && totals.paid >= totals.due ? "مدفوعة بالكامل" : totals.paid > 0 ? "جزئية" : "لم تدفع"; const tone = status === "مدفوعة بالكامل" ? "green" : status === "جزئية" ? "orange" : "red";
+          const meter = getMeter(invoice.meterId, meters); const totals = invoiceTotals(invoice, tenants); const status = totals.due > 0 && totals.paid >= totals.due ? "مدفوعة بالكامل" : totals.paid > 0 ? "جزئية" : "لم تدفع"; const tone = status === "مدفوعة بالكامل" ? "green" : status === "جزئية" ? "orange" : "red";
           return <Pressable key={invoice.id} style={({ pressed }) => [cardStyle, pressed && { opacity: 0.82 }]} onPress={() => router.push(`/invoice/${invoice.id}`)}>
             <View style={styles.cardTop}><Pill label={status} tone={tone as "green" | "orange" | "red"} /><View style={styles.invoiceIdentity}><Text style={styles.invoiceTitle}>{invoice.title}</Text><Text style={styles.invoiceMeta}>{meter.owner} • {invoiceDateLabel(invoice.issueDate)}</Text></View><View style={styles.receiptIcon}><Ionicons name="receipt-outline" size={21} color={E.gold} /></View></View>
             <View style={styles.cardRule} />
