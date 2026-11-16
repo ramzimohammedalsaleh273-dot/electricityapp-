@@ -72,6 +72,7 @@ export function ElectricityProvider({ children }: { children: React.ReactNode })
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    void AsyncStorage.removeItem("electricity-ledger-v1");
     Promise.all([AsyncStorage.getItem(STORAGE_KEY), AsyncStorage.getItem(SETTINGS_KEY)]).then(([raw, settingsRaw]) => {
       if (raw) { try { const parsed = JSON.parse(raw) as Invoice[]; if (Array.isArray(parsed)) setInvoices(sortInvoices(parsed.map(normalizeInvoice))); } catch { setInvoices([]); } }
       if (settingsRaw) { try { const parsed = JSON.parse(settingsRaw) as SettingsRecord; if (typeof parsed.defaultRate === "number" && parsed.defaultRate >= 0) setDefaultRateState(parsed.defaultRate); if (Array.isArray(parsed.meters) && parsed.meters.length) setMeters(parsed.meters); if (Array.isArray(parsed.tenants)) setTenants(parsed.tenants); } catch { setDefaultRateState(261); } }
