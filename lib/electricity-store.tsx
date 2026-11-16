@@ -8,8 +8,12 @@ export type ReadingEntry = { previous: number; current: number; paid: number };
 export type Payment = { id: string; tenantId: string; amount: number; paidAt: string; receipt: string; note: string };
 export type Invoice = {
   id: string;
+  invoiceNumber: number;
   meterId: MeterId;
   title: string;
+  year: number;
+  startDate: string;
+  endDate: string;
   issueDate: string;
   issueKind: "بداية الشهر" | "منتصف الشهر" | "نهاية الشهر";
   rate: number;
@@ -47,8 +51,8 @@ export type StoreContextValue = {
   defaultRate: number;
   setDefaultRate: (rate: number) => Promise<void>;
   addMeter: (owner: string, tenantNames: string[]) => Promise<Meter>;
-  createInvoice: (input: { meterId: MeterId; title: string; issueDate: string; issueKind: Invoice["issueKind"]; rate: number; originalInvoice: number }) => Promise<Invoice>;
-  updateInvoice: (id: string, patch: Partial<Pick<Invoice, "title" | "issueDate" | "issueKind" | "rate" | "originalInvoice" | "main" | "tenants" | "payments">>) => Promise<void>;
+  createInvoice: (input: { meterId: MeterId; title: string; year: number; issueDate: string; startDate: string; endDate: string; issueKind: Invoice["issueKind"]; rate: number; originalInvoice: number }) => Promise<Invoice>;
+  updateInvoice: (id: string, patch: Partial<Pick<Invoice, "title" | "year" | "issueDate" | "startDate" | "endDate" | "issueKind" | "rate" | "originalInvoice" | "main" | "tenants" | "payments">>) => Promise<void>;
   addPayment: (invoiceId: string, payment: Omit<Payment, "id">) => Promise<Payment>;
   deleteInvoice: (id: string) => Promise<void>;
   clearInvoices: () => Promise<void>;
@@ -59,7 +63,8 @@ const StoreContext = createContext<StoreContextValue | null>(null);
 function sortInvoices(items: Invoice[]) { return [...items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.issueDate.localeCompare(a.issueDate)); }
 function normalizeInvoice(item: Invoice): Invoice {
   const legacyMeterId = String(item.meterId) === "1" ? "meter-1" : String(item.meterId) === "2" ? "meter-2" : String(item.meterId);
-  return { ...item, meterId: legacyMeterId, payments: Array.isArray(item.payments) ? item.payments : [], main: item.main ?? { previous: 0, current: 0, paid: 0 }, tenants: item.tenants ?? {} };
+  const legacyDate = item.issueDate ?? new Date().toISOString().slice(0, 10);
+  return { ...item, invoiceNumber: item.invoiceNumber ?? 0, meterId: legacyMeterId, year: item.year ?? Number(legacyDate.slice(0, 4)), startDate: item.startDate ?? legacyDate, endDate: item.endDate ?? legacyDate, payments: Array.isArray(item.payments) ? item.payments : [], main: item.main ?? { previous: 0, current: 0, paid: 0 }, tenants: item.tenants ?? {} };
 }
 function latestForMeter(items: Invoice[], meterId: MeterId) { return [...items].filter((item) => item.meterId === meterId).sort((a, b) => b.issueDate.localeCompare(a.issueDate) || b.updatedAt.localeCompare(a.updatedAt))[0]; }
 function numberOrZero(value: unknown) { const parsed = Number(value); return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0; }
@@ -92,7 +97,7 @@ export function ElectricityProvider({ children }: { children: React.ReactNode })
   const createInvoice = useCallback<StoreContextValue["createInvoice"]>(async (input) => {
     const previous = latestForMeter(invoices, input.meterId);
     const invoiceTenants = tenants.filter((tenant) => tenant.meterId === input.meterId).reduce<Record<string, ReadingEntry>>((acc, tenant) => { const old = previous?.tenants[tenant.id]; acc[tenant.id] = { previous: old?.current ?? 0, current: 0, paid: 0 }; return acc; }, {});
-    const now = new Date().toISOString(); const invoice: Invoice = { id: `${input.meterId}-${Date.now()}`, meterId: input.meterId, title: input.title.trim(), issueDate: input.issueDate, issueKind: input.issueKind, rate: numberOrZero(input.rate), originalInvoice: numberOrZero(input.originalInvoice), main: { previous: previous?.main.current ?? 0, current: 0, paid: 0 }, tenants: invoiceTenants, payments: [], createdAt: now, updatedAt: now };
+    const now = new Date().toISOString(); const nextNumber = invoices.reduce((max, item) => Math.max(max, Number(item.invoiceNumber) || 0), 0) + 1; const invoice: Invoice = { id: `${input.meterId}-${Date.now()}`, invoiceNumber: nextNumber, meterId: input.meterId, title: input.title.trim(), year: input.year, issueDate: input.issueDate, startDate: input.startDate, endDate: input.endDate, issueKind: input.issueKind, rate: numberOrZero(input.rate), originalInvoice: numberOrZero(input.originalInvoice), main: { previous: previous?.main.current ?? 0, current: 0, paid: 0 }, tenants: invoiceTenants, payments: [], createdAt: now, updatedAt: now };
     await persist([invoice, ...invoices]); return invoice;
   }, [invoices, persist, tenants]);
   const updateInvoice = useCallback<StoreContextValue["updateInvoice"]>(async (id, patch) => { await persist(invoices.map((invoice) => invoice.id === id ? { ...invoice, ...patch, updatedAt: new Date().toISOString() } : invoice)); }, [invoices, persist]);
